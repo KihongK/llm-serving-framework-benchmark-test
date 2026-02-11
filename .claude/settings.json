@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(du:*)",
+      "Bash(git -C /home/work/serving_framework/sglang log --oneline -10)",
+      "WebSearch",
+      "WebFetch(domain:skills.sh)",
+      "WebFetch(domain:alexop.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(pip show:*)",
+      "WebFetch(domain:docs.vllm.ai)",
+      "Bash(nvidia-smi:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(gh repo view:*)",
+      "Bash(git clone:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh auth status:*)",
+      "Bash(command -v:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(nvcc:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx skills add:*)",
+      "Bash(python3.11:*)",
+      "Bash(pip:*)",
+      "Bash(python3.10:*)",
+      "Bash(python3.12:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"\\(.tool_input.command) - \\(.tool_input.description // \"No description\")\"' >> ~/.claude/bash-command-log.txt"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -d \"$(jq -r '.message // \"작업 완료\"')\" ntfy.sh/roy-claude > /dev/null"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+# Framework source repos (git clones, root level only)
+/sglang/
+/vllm/
+/ollama/
+
+# Virtual environments
+.venv/
+*_env/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
