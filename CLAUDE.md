@@ -20,10 +20,11 @@ LLM serving framework 비교 프로젝트. vLLM, SGLang, Ollama 3개 프레임�
 ## 디렉토리 구조
 
 ```
-/home/work/serving_framework/
+/home/work/llm-serving-framework-benchmark-test/
     sglang/          # 소스 클론 (v0.5.6.post2)
     vllm/            # 소스 클론 (v0.16.0rc1)
     ollama/          # 소스 클론 (v0.15.6)
+    bench/           # 벤치마크 소스코드 (python -m bench)
     blog/            # 블로그 작성
     docs/            # 문서·계획
     results/         # 벤치마크 결과 (sglang/, vllm/, ollama/, summary/)
@@ -79,8 +80,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 | Framework | 가상환경 | pip 설치 버전 | 상태 |
 |-----------|---------|--------------|------|
 | SGLang | `sglang/sglang_env/` | 0.5.6.post2 | 설치 완료 |
-| vLLM | `vllm/vllm_env/` | — | venv 생성됨, pip 패키지 미설치 |
-| Ollama | (Go 바이너리) | — | 미설치 |
+| vLLM | `vllm/vllm_env/` | 0.15.1 | 설치 완료 |
+| Ollama | (Go 바이너리) | 0.15.6 | 설치 완료 |
 
 ```bash
 # SGLang 환경 활성화
