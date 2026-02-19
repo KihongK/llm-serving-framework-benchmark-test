@@ -217,7 +217,7 @@ if [ -d "${VLLM_ENV}" ] && [ -f "${VLLM_ENV}/bin/python" ]; then
 else
     mkdir -p "${PROJECT_DIR}/vllm"
     uv venv "${VLLM_ENV}" --python 3.12
-    uv pip install --python "${VLLM_ENV}/bin/python" vllm --index-url "${TORCH_INDEX}"
+    uv pip install vllm
     print_done "vLLM 설치 완료"
 fi
 
