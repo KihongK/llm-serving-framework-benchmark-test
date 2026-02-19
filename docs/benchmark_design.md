@@ -1,6 +1,6 @@
 # LLM 서빙 프레임워크 벤치마크 설계서
 
-> SGLang v0.5.6.post2 | vLLM v0.15.1 | Ollama v0.15.6
+> SGLang v0.5.8.post1 | vLLM v0.15.1 | Ollama v0.16.2
 > 작성일: 2026-02-12
 
 ---
