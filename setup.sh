@@ -89,6 +89,13 @@ apt-get install -y -qq "${APT_PACKAGES[@]}"
 print_done "시스템 패키지 설치 완료"
 
 # ─────────────────────────────────────────────
+# Git 사용자 설정
+# ─────────────────────────────────────────────
+git config --global user.name "Roy"
+git config --global user.email "kkhong@alphacode.ai"
+print_done "Git 사용자 설정 완료 (Roy <kkhong@alphacode.ai>)"
+
+# ─────────────────────────────────────────────
 # 2. uv 설치
 # ─────────────────────────────────────────────
 print_step "uv 설치"
