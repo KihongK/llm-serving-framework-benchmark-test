@@ -191,11 +191,11 @@ fi
 # 5. SGLang 가상환경 세팅
 # ─────────────────────────────────────────────
 print_step "SGLang 가상환경 생성 및 패키지 설치"
-SGLANG_ENV="${PROJECT_DIR}/envs/sglang"
+SGLANG_ENV="${PROJECT_DIR}/sglang/sglang_env"
 if [ -d "${SGLANG_ENV}" ] && [ -f "${SGLANG_ENV}/bin/python" ]; then
     print_done "SGLang 가상환경 이미 존재"
 else
-    mkdir -p "${PROJECT_DIR}/envs"
+    mkdir -p "${PROJECT_DIR}/sglang"
     uv venv "${SGLANG_ENV}" --python 3.12
     (
         source "${SGLANG_ENV}/bin/activate"
@@ -210,11 +210,11 @@ fi
 # 6. vLLM 가상환경 세팅
 # ─────────────────────────────────────────────
 print_step "vLLM 가상환경 생성 및 패키지 설치"
-VLLM_ENV="${PROJECT_DIR}/envs/vllm"
+VLLM_ENV="${PROJECT_DIR}/vllm/vllm_env"
 if [ -d "${VLLM_ENV}" ] && [ -f "${VLLM_ENV}/bin/python" ]; then
     print_done "vLLM 가상환경 이미 존재"
 else
-    mkdir -p "${PROJECT_DIR}/envs"
+    mkdir -p "${PROJECT_DIR}/vllm"
     uv venv "${VLLM_ENV}" --python 3.12
     (
         source "${VLLM_ENV}/bin/activate"
@@ -261,11 +261,11 @@ echo "       claude"
 echo ""
 echo "  5. 프레임워크 서버 실행 (필요 시):"
 echo "       # SGLang"
-echo "       source envs/sglang/bin/activate"
+echo "       source sglang/sglang_env/bin/activate"
 echo "       python3 -m sglang.launch_server --model-path openai/gpt-oss-20b --tp 1"
 echo ""
 echo "       # vLLM"
-echo "       source envs/vllm/bin/activate"
+echo "       source vllm/vllm_env/bin/activate"
 echo "       vllm serve openai/gpt-oss-20b --host 0.0.0.0 --port 8000"
 echo ""
 echo "       # Ollama"
