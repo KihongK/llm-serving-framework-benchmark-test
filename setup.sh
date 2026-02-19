@@ -14,8 +14,7 @@ WORK_DIR="/home/work"
 PROJECT_REPO="https://github.com/KihongK/llm-serving-framework-benchmark-test.git"
 PROJECT_DIR="${WORK_DIR}/llm-serving-framework-benchmark-test"
 
-# PyTorch CUDA 12.1 wheel index — 모든 venv에서 동일 torch를 사용하여 중복 설치 방지
-# uv 캐시(hardlink)가 동일 wheel을 공유하므로 디스크 낭비 없음
+# PyTorch CUDA 12.1 wheel index — vLLM에서 사용
 TORCH_INDEX="https://download.pytorch.org/whl/cu121"
 
 GREEN='\033[0;32m'
@@ -200,9 +199,9 @@ else
     uv venv "${SGLANG_ENV}" --python 3.12
     (
         source "${SGLANG_ENV}/bin/activate"
-        # PyTorch CUDA wheel 먼저 설치 (uv 캐시로 vLLM과 공유)
-        uv pip install torch torchvision torchaudio --index-url "${TORCH_INDEX}"
-        uv pip install "sglang[all]==0.5.6.post2" --extra-index-url "${TORCH_INDEX}"
+        pip install --upgrade pip
+        pip install uv
+        uv pip install sglang
     )
     print_done "SGLang 설치 완료"
 fi
@@ -219,8 +218,8 @@ else
     uv venv "${VLLM_ENV}" --python 3.12
     (
         source "${VLLM_ENV}/bin/activate"
-        # PyTorch CUDA wheel 먼저 설치 (uv 캐시로 SGLang과 공유)
-        uv pip install torch torchvision torchaudio --index-url "${TORCH_INDEX}"
+        # PyTorch CUDA wheel만 설치 (torchvision/torchaudio 제거 — 벤치마크에 불필요)
+        uv pip install torch --index-url "${TORCH_INDEX}"
         uv pip install vllm --extra-index-url "${TORCH_INDEX}"
     )
     print_done "vLLM 설치 완료"
