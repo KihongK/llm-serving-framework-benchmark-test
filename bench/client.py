@@ -51,6 +51,14 @@ class ScenarioResult:
     total_time_sec: float = 0.0
     gpu_memory_mb: float = 0.0
     gpu_utilization_pct: float = 0.0
+    peak_memory_mb: float = 0.0
+    avg_memory_mb: float = 0.0
+    avg_gpu_util_pct: float = 0.0
+
+    # prefix cache 전용 필드
+    first_5_avg_ttft_ms: float = 0.0
+    later_avg_ttft_ms: float = 0.0
+    cache_speedup_ratio: float = 0.0
 
     def compute_aggregates(self):
         """개별 결과로부터 집계 메트릭 계산."""
@@ -113,6 +121,96 @@ def get_gpu_stats() -> dict:
     return {"memory_used_mb": 0, "memory_total_mb": 0, "gpu_utilization_pct": 0}
 
 
+class GpuMonitor:
+    """백그라운드에서 주기적으로 GPU 메모리/활용률을 샘플링."""
+
+    def __init__(self, interval: float = 1.0):
+        self.interval = interval
+        self._samples: list[dict] = []
+        self._task: asyncio.Task | None = None
+        self._running = False
+
+    async def _poll(self):
+        while self._running:
+            stats = get_gpu_stats()
+            if stats["memory_used_mb"] > 0:
+                self._samples.append(stats)
+            await asyncio.sleep(self.interval)
+
+    def start(self):
+        """모니터링 시작. 이미 실행 중인 이벤트 루프에서 호출."""
+        self._samples.clear()
+        self._running = True
+        self._task = asyncio.get_event_loop().create_task(self._poll())
+
+    async def stop(self) -> dict:
+        """모니터링 중지 후 요약 반환."""
+        self._running = False
+        if self._task:
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+        return self.summary()
+
+    def summary(self) -> dict:
+        """수집된 샘플의 요약 통계."""
+        if not self._samples:
+            return {"peak_memory_mb": 0.0, "avg_memory_mb": 0.0, "avg_gpu_util_pct": 0.0}
+        mems = [s["memory_used_mb"] for s in self._samples]
+        utils = [s["gpu_utilization_pct"] for s in self._samples]
+        return {
+            "peak_memory_mb": round(max(mems), 2),
+            "avg_memory_mb": round(statistics.mean(mems), 2),
+            "avg_gpu_util_pct": round(statistics.mean(utils), 2),
+        }
+
+
+@dataclass
+class TrialSummary:
+    """여러 trial 실행의 집계 결과."""
+    scenario: str
+    framework: str
+    num_trials: int
+    mean_ttft_ms: float = 0.0
+    std_ttft_ms: float = 0.0
+    mean_throughput: float = 0.0
+    std_throughput: float = 0.0
+    mean_p99_latency_ms: float = 0.0
+    std_p99_latency_ms: float = 0.0
+    mean_success_rate: float = 0.0
+    mean_peak_memory_mb: float = 0.0
+
+    @staticmethod
+    def from_results(results: list["ScenarioResult"]) -> "TrialSummary":
+        """동일 시나리오의 여러 trial 결과로부터 요약 생성."""
+        if not results:
+            return TrialSummary(scenario="", framework="", num_trials=0)
+        first = results[0]
+        ttfts = [r.avg_ttft_ms for r in results]
+        thrpts = [r.total_token_throughput for r in results]
+        p99s = [r.p99_latency_ms for r in results]
+        srs = [r.success_rate for r in results]
+        peaks = [r.peak_memory_mb for r in results]
+        return TrialSummary(
+            scenario=first.scenario,
+            framework=first.framework,
+            num_trials=len(results),
+            mean_ttft_ms=round(statistics.mean(ttfts), 2) if ttfts else 0.0,
+            std_ttft_ms=round(statistics.stdev(ttfts), 2) if len(ttfts) > 1 else 0.0,
+            mean_throughput=round(statistics.mean(thrpts), 2) if thrpts else 0.0,
+            std_throughput=round(statistics.stdev(thrpts), 2) if len(thrpts) > 1 else 0.0,
+            mean_p99_latency_ms=round(statistics.mean(p99s), 2) if p99s else 0.0,
+            std_p99_latency_ms=round(statistics.stdev(p99s), 2) if len(p99s) > 1 else 0.0,
+            mean_success_rate=round(statistics.mean(srs), 2) if srs else 0.0,
+            mean_peak_memory_mb=round(statistics.mean(peaks), 2) if peaks else 0.0,
+        )
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
 async def check_server_health(base_url: str) -> bool:
     """서버 health 체크."""
     health_paths = ["/health", "/v1/models", "/api/tags"]
@@ -149,27 +247,31 @@ async def send_request(
                 body = await resp.text()
                 return RequestResult(success=False, error=f"HTTP {resp.status}: {body[:200]}")
 
-            async for line in resp.content:
-                decoded = line.decode("utf-8").strip()
-                if not decoded or not decoded.startswith("data:"):
-                    continue
-                data_str = decoded[5:].strip()
-                if data_str == "[DONE]":
-                    break
-                try:
-                    data = json.loads(data_str)
-                    choices = data.get("choices", [])
-                    if choices:
-                        delta = choices[0].get("delta", {})
-                        content = delta.get("content", "")
-                        if content:
-                            if first_token_time is None:
-                                first_token_time = time.perf_counter()
-                            # Approximate token count by splitting on spaces
-                            # More accurate: count SSE chunks with content
-                            tokens_generated += 1
-                except json.JSONDecodeError:
-                    continue
+            # Read SSE stream line-by-line (resp.content yields arbitrary chunks)
+            buf = b""
+            async for chunk in resp.content:
+                buf += chunk
+                while b"\n" in buf:
+                    line_bytes, buf = buf.split(b"\n", 1)
+                    decoded = line_bytes.decode("utf-8", errors="replace").strip()
+                    if not decoded or not decoded.startswith("data:"):
+                        continue
+                    data_str = decoded[5:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        choices = data.get("choices", [])
+                        if choices:
+                            delta = choices[0].get("delta", {})
+                            # Check both content and reasoning_content (reasoning models)
+                            content = delta.get("content", "") or delta.get("reasoning_content", "")
+                            if content:
+                                if first_token_time is None:
+                                    first_token_time = time.perf_counter()
+                                tokens_generated += 1
+                    except json.JSONDecodeError:
+                        continue
 
     except asyncio.TimeoutError:
         return RequestResult(

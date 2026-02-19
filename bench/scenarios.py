@@ -7,6 +7,7 @@ import aiohttp
 from tqdm import tqdm
 
 from .client import (
+    GpuMonitor,
     ScenarioResult,
     get_gpu_stats,
     run_concurrent_requests,
@@ -40,9 +41,14 @@ async def scenario_single_request(framework: str, warmup: int = 3) -> list[Scena
         ]
         messages_list = [messages] * (warmup + num_requests)
 
+        monitor = GpuMonitor(interval=1.0)
+        monitor.start()
+
         results, elapsed = await run_concurrent_requests(
             framework, messages_list, output_tokens, concurrency=1
         )
+
+        gpu_summary = await monitor.stop()
 
         # 워밍업 제외
         results = results[warmup:]
@@ -61,6 +67,9 @@ async def scenario_single_request(framework: str, warmup: int = 3) -> list[Scena
         gpu = get_gpu_stats()
         sr.gpu_memory_mb = gpu["memory_used_mb"]
         sr.gpu_utilization_pct = gpu["gpu_utilization_pct"]
+        sr.peak_memory_mb = gpu_summary["peak_memory_mb"]
+        sr.avg_memory_mb = gpu_summary["avg_memory_mb"]
+        sr.avg_gpu_util_pct = gpu_summary["avg_gpu_util_pct"]
         sr.compute_aggregates()
         all_results.append(sr)
 
@@ -93,9 +102,14 @@ async def scenario_concurrent_load(framework: str) -> list[ScenarioResult]:
         print(f"\n--- Concurrency: {conc}, Total Requests: {total_requests} ---")
         messages_list = [messages] * total_requests
 
+        monitor = GpuMonitor(interval=1.0)
+        monitor.start()
+
         results, elapsed = await run_concurrent_requests(
             framework, messages_list, output_tokens, concurrency=conc
         )
+
+        gpu_summary = await monitor.stop()
 
         sr = ScenarioResult(
             scenario="concurrent_load",
@@ -111,6 +125,9 @@ async def scenario_concurrent_load(framework: str) -> list[ScenarioResult]:
         gpu = get_gpu_stats()
         sr.gpu_memory_mb = gpu["memory_used_mb"]
         sr.gpu_utilization_pct = gpu["gpu_utilization_pct"]
+        sr.peak_memory_mb = gpu_summary["peak_memory_mb"]
+        sr.avg_memory_mb = gpu_summary["avg_memory_mb"]
+        sr.avg_gpu_util_pct = gpu_summary["avg_gpu_util_pct"]
         sr.compute_aggregates()
         all_results.append(sr)
 
@@ -145,9 +162,14 @@ async def scenario_long_context(framework: str) -> list[ScenarioResult]:
             print(f"\n--- Input: {input_len} tokens, Concurrency: {conc} ---")
             messages_list = [messages] * num_requests
 
+            monitor = GpuMonitor(interval=1.0)
+            monitor.start()
+
             results, elapsed = await run_concurrent_requests(
                 framework, messages_list, output_tokens, concurrency=conc
             )
+
+            gpu_summary = await monitor.stop()
 
             sr = ScenarioResult(
                 scenario="long_context",
@@ -163,6 +185,9 @@ async def scenario_long_context(framework: str) -> list[ScenarioResult]:
             gpu = get_gpu_stats()
             sr.gpu_memory_mb = gpu["memory_used_mb"]
             sr.gpu_utilization_pct = gpu["gpu_utilization_pct"]
+            sr.peak_memory_mb = gpu_summary["peak_memory_mb"]
+            sr.avg_memory_mb = gpu_summary["avg_memory_mb"]
+            sr.avg_gpu_util_pct = gpu_summary["avg_gpu_util_pct"]
             sr.compute_aggregates()
             all_results.append(sr)
 
@@ -223,6 +248,10 @@ async def scenario_prefix_cache(framework: str) -> list[ScenarioResult]:
     url = f"{config['base_url']}{config['chat_endpoint']}"
 
     all_request_results = []
+
+    monitor = GpuMonitor(interval=1.0)
+    monitor.start()
+
     start = time.perf_counter()
 
     connector = aiohttp.TCPConnector(limit=5)
@@ -240,6 +269,8 @@ async def scenario_prefix_cache(framework: str) -> list[ScenarioResult]:
 
     elapsed = time.perf_counter() - start
 
+    gpu_summary = await monitor.stop()
+
     sr = ScenarioResult(
         scenario="prefix_cache",
         framework=framework,
@@ -254,20 +285,29 @@ async def scenario_prefix_cache(framework: str) -> list[ScenarioResult]:
     gpu = get_gpu_stats()
     sr.gpu_memory_mb = gpu["memory_used_mb"]
     sr.gpu_utilization_pct = gpu["gpu_utilization_pct"]
+    sr.peak_memory_mb = gpu_summary["peak_memory_mb"]
+    sr.avg_memory_mb = gpu_summary["avg_memory_mb"]
+    sr.avg_gpu_util_pct = gpu_summary["avg_gpu_util_pct"]
     sr.compute_aggregates()
 
-    # 첫 5개 vs 나머지 TTFT 비교
+    # 첫 5개 vs 나머지 TTFT 비교 — ScenarioResult에 저장
     first_ttfts = [r.ttft_ms for r in all_request_results[:5] if r.success and r.ttft_ms > 0]
     later_ttfts = [r.ttft_ms for r in all_request_results[5:] if r.success and r.ttft_ms > 0]
 
+    if first_ttfts:
+        sr.first_5_avg_ttft_ms = round(statistics.mean(first_ttfts), 2)
+    if later_ttfts:
+        sr.later_avg_ttft_ms = round(statistics.mean(later_ttfts), 2)
+    if first_ttfts and later_ttfts and statistics.mean(later_ttfts) > 0:
+        sr.cache_speedup_ratio = round(statistics.mean(first_ttfts) / statistics.mean(later_ttfts), 2)
+
     print(f"\n  Overall TTFT (avg): {sr.avg_ttft_ms} ms")
     if first_ttfts:
-        print(f"  First 5 requests TTFT (avg): {round(statistics.mean(first_ttfts), 2)} ms")
+        print(f"  First 5 requests TTFT (avg): {sr.first_5_avg_ttft_ms} ms")
     if later_ttfts:
-        print(f"  Remaining requests TTFT (avg): {round(statistics.mean(later_ttfts), 2)} ms")
-    if first_ttfts and later_ttfts:
-        speedup = statistics.mean(first_ttfts) / statistics.mean(later_ttfts)
-        print(f"  Cache speedup (first/later TTFT): {round(speedup, 2)}x")
+        print(f"  Remaining requests TTFT (avg): {sr.later_avg_ttft_ms} ms")
+    if sr.cache_speedup_ratio > 0:
+        print(f"  Cache speedup (first/later TTFT): {sr.cache_speedup_ratio}x")
     print(f"  Token throughput: {sr.total_token_throughput} tok/s")
     print(f"  Success rate: {sr.success_rate}%")
 
@@ -307,9 +347,14 @@ async def scenario_korean(framework: str, warmup: int = 3) -> list[ScenarioResul
                 messages = [{"role": "user", "content": prompt_text}]
                 messages_list = [messages] * (warmup + num_requests) if conc == 1 else [messages] * num_requests
 
+                monitor = GpuMonitor(interval=1.0)
+                monitor.start()
+
                 results, elapsed = await run_concurrent_requests(
                     framework, messages_list, output_tokens, concurrency=conc
                 )
+
+                gpu_summary = await monitor.stop()
 
                 if conc == 1:
                     results = results[warmup:]
@@ -328,6 +373,9 @@ async def scenario_korean(framework: str, warmup: int = 3) -> list[ScenarioResul
                 gpu = get_gpu_stats()
                 sr.gpu_memory_mb = gpu["memory_used_mb"]
                 sr.gpu_utilization_pct = gpu["gpu_utilization_pct"]
+                sr.peak_memory_mb = gpu_summary["peak_memory_mb"]
+                sr.avg_memory_mb = gpu_summary["avg_memory_mb"]
+                sr.avg_gpu_util_pct = gpu_summary["avg_gpu_util_pct"]
                 sr.compute_aggregates()
                 all_results.append(sr)
 
@@ -345,9 +393,15 @@ async def scenario_korean(framework: str, warmup: int = 3) -> list[ScenarioResul
                 messages_en = [{"role": "user", "content": contrast_text}]
                 messages_list_en = [messages_en] * (warmup + num_requests)
 
+                monitor_en = GpuMonitor(interval=1.0)
+                monitor_en.start()
+
                 results_en, elapsed_en = await run_concurrent_requests(
                     framework, messages_list_en, output_tokens, concurrency=1
                 )
+
+                gpu_summary_en = await monitor_en.stop()
+
                 results_en = results_en[warmup:]
 
                 sr_en = ScenarioResult(
@@ -364,6 +418,9 @@ async def scenario_korean(framework: str, warmup: int = 3) -> list[ScenarioResul
                 gpu_en = get_gpu_stats()
                 sr_en.gpu_memory_mb = gpu_en["memory_used_mb"]
                 sr_en.gpu_utilization_pct = gpu_en["gpu_utilization_pct"]
+                sr_en.peak_memory_mb = gpu_summary_en["peak_memory_mb"]
+                sr_en.avg_memory_mb = gpu_summary_en["avg_memory_mb"]
+                sr_en.avg_gpu_util_pct = gpu_summary_en["avg_gpu_util_pct"]
                 sr_en.compute_aggregates()
                 all_results.append(sr_en)
 

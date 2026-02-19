@@ -38,7 +38,7 @@ setup_bench_env() {
         log_info "Creating benchmark virtual environment..."
         uv venv "$BENCH_ENV" --python 3.12
         source "$BENCH_ENV/bin/activate"
-        uv pip install aiohttp numpy tqdm
+        uv pip install aiohttp numpy tqdm matplotlib
         deactivate
         log_info "Benchmark environment created."
     else
@@ -99,11 +99,13 @@ run_benchmark() {
     esac
 
     # 벤치마크 실행
+    local trials=${BENCH_TRIALS:-1}
     source "$BENCH_ENV/bin/activate"
     python3 -m bench \
         --framework "$framework" \
         --model "$model" \
         --scenario "$scenario" \
+        --trials "$trials" \
         --output-dir "$PROJECT_DIR/results/$framework"
     deactivate
 
@@ -170,6 +172,15 @@ else:
     deactivate
 }
 
+# ---- 분석 보고서 + 차트 생성 ----
+run_analysis() {
+    log_info "Generating analysis report and charts..."
+    source "$BENCH_ENV/bin/activate"
+    python3 -m bench.analyze --results-dir "$PROJECT_DIR/results"
+    deactivate
+    log_info "Analysis complete. See results/summary/"
+}
+
 # ---- 메인 ----
 main() {
     local target_framework=${1:-all}
@@ -202,6 +213,7 @@ main() {
         done
 
         generate_summary
+        run_analysis
     else
         run_benchmark "$target_framework" "$target_scenario" "$target_model"
     fi
