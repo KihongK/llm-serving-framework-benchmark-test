@@ -14,13 +14,17 @@ WORK_DIR="/home/work"
 PROJECT_REPO="https://github.com/KihongK/llm-serving-framework-benchmark-test.git"
 PROJECT_DIR="${WORK_DIR}/llm-serving-framework-benchmark-test"
 
+# PyTorch CUDA 12.1 wheel index — 모든 venv에서 동일 torch를 사용하여 중복 설치 방지
+# uv 캐시(hardlink)가 동일 wheel을 공유하므로 디스크 낭비 없음
+TORCH_INDEX="https://download.pytorch.org/whl/cu121"
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 step=0
-total_steps=8
+total_steps=7
 
 print_step() {
     step=$((step + 1))
@@ -185,61 +189,45 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# 5. 프레임워크 소스 클론
-# ─────────────────────────────────────────────
-print_step "프레임워크 소스 클론 (sglang, vllm, ollama)"
-
-clone_framework() {
-    local name=$1 url=$2 tag=$3
-    local dir="${PROJECT_DIR}/${name}"
-    if [ -d "${dir}/.git" ]; then
-        print_done "${name} 이미 클론됨"
-    else
-        git clone "${url}" "${dir}"
-        git -C "${dir}" checkout "${tag}"
-        print_done "${name} 클론 완료 (${tag})"
-    fi
-}
-
-clone_framework "sglang" "https://github.com/sgl-project/sglang.git" "v0.5.6.post2"
-clone_framework "vllm"   "https://github.com/vllm-project/vllm.git"  "v0.16.0rc1"
-clone_framework "ollama"  "https://github.com/ollama/ollama.git"      "v0.15.6"
-
-# ─────────────────────────────────────────────
-# 6. SGLang 가상환경 세팅
+# 5. SGLang 가상환경 세팅
 # ─────────────────────────────────────────────
 print_step "SGLang 가상환경 생성 및 패키지 설치"
-SGLANG_ENV="${PROJECT_DIR}/sglang/sglang_env"
+SGLANG_ENV="${PROJECT_DIR}/envs/sglang"
 if [ -d "${SGLANG_ENV}" ] && [ -f "${SGLANG_ENV}/bin/python" ]; then
     print_done "SGLang 가상환경 이미 존재"
 else
+    mkdir -p "${PROJECT_DIR}/envs"
     uv venv "${SGLANG_ENV}" --python 3.12
-    # subshell로 가상환경 활성화 후 설치
     (
         source "${SGLANG_ENV}/bin/activate"
-        uv pip install "sglang[all]==0.5.6.post2"
+        # PyTorch CUDA wheel 먼저 설치 (uv 캐시로 vLLM과 공유)
+        uv pip install torch torchvision torchaudio --index-url "${TORCH_INDEX}"
+        uv pip install "sglang[all]==0.5.6.post2" --extra-index-url "${TORCH_INDEX}"
     )
     print_done "SGLang 설치 완료"
 fi
 
 # ─────────────────────────────────────────────
-# 7. vLLM 가상환경 세팅
+# 6. vLLM 가상환경 세팅
 # ─────────────────────────────────────────────
 print_step "vLLM 가상환경 생성 및 패키지 설치"
-VLLM_ENV="${PROJECT_DIR}/vllm/vllm_env"
+VLLM_ENV="${PROJECT_DIR}/envs/vllm"
 if [ -d "${VLLM_ENV}" ] && [ -f "${VLLM_ENV}/bin/python" ]; then
     print_done "vLLM 가상환경 이미 존재"
 else
+    mkdir -p "${PROJECT_DIR}/envs"
     uv venv "${VLLM_ENV}" --python 3.12
     (
         source "${VLLM_ENV}/bin/activate"
-        uv pip install vllm
+        # PyTorch CUDA wheel 먼저 설치 (uv 캐시로 SGLang과 공유)
+        uv pip install torch torchvision torchaudio --index-url "${TORCH_INDEX}"
+        uv pip install vllm --extra-index-url "${TORCH_INDEX}"
     )
     print_done "vLLM 설치 완료"
 fi
 
 # ─────────────────────────────────────────────
-# 8. Ollama 바이너리 설치
+# 7. Ollama 바이너리 설치
 # ─────────────────────────────────────────────
 print_step "Ollama 바이너리 설치"
 if command -v ollama &>/dev/null; then
@@ -274,11 +262,11 @@ echo "       claude"
 echo ""
 echo "  5. 프레임워크 서버 실행 (필요 시):"
 echo "       # SGLang"
-echo "       source sglang/sglang_env/bin/activate"
+echo "       source envs/sglang/bin/activate"
 echo "       python3 -m sglang.launch_server --model-path openai/gpt-oss-20b --tp 1"
 echo ""
 echo "       # vLLM"
-echo "       source vllm/vllm_env/bin/activate"
+echo "       source envs/vllm/bin/activate"
 echo "       vllm serve openai/gpt-oss-20b --host 0.0.0.0 --port 8000"
 echo ""
 echo "       # Ollama"
