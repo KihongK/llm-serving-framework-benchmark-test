@@ -14,8 +14,14 @@ WORK_DIR="/home/work"
 PROJECT_REPO="https://github.com/KihongK/llm-serving-framework-benchmark-test.git"
 PROJECT_DIR="${WORK_DIR}/llm-serving-framework-benchmark-test"
 
-# PyTorch CUDA 12.1 wheel index — vLLM에서 사용
-TORCH_INDEX="https://download.pytorch.org/whl/cu121"
+# PyTorch CUDA wheel index — nvcc 버전에서 자동 감지
+if command -v nvcc &>/dev/null; then
+    CUDA_VER=$(nvcc --version | grep -oP 'release \K[0-9]+\.[0-9]+' | tr -d '.')
+    TORCH_INDEX="https://download.pytorch.org/whl/cu${CUDA_VER}"
+else
+    TORCH_INDEX="https://download.pytorch.org/whl/cu121"
+    echo -e "${YELLOW}⚠  nvcc를 찾을 수 없어 기본값 cu121 사용${NC}"
+fi
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -197,12 +203,7 @@ if [ -d "${SGLANG_ENV}" ] && [ -f "${SGLANG_ENV}/bin/python" ]; then
 else
     mkdir -p "${PROJECT_DIR}/sglang"
     uv venv "${SGLANG_ENV}" --python 3.12
-    (
-        source "${SGLANG_ENV}/bin/activate"
-        pip install --upgrade pip
-        pip install uv
-        uv pip install sglang
-    )
+    uv pip install --python "${SGLANG_ENV}/bin/python" sglang
     print_done "SGLang 설치 완료"
 fi
 
@@ -216,12 +217,7 @@ if [ -d "${VLLM_ENV}" ] && [ -f "${VLLM_ENV}/bin/python" ]; then
 else
     mkdir -p "${PROJECT_DIR}/vllm"
     uv venv "${VLLM_ENV}" --python 3.12
-    (
-        source "${VLLM_ENV}/bin/activate"
-        # PyTorch CUDA wheel만 설치 (torchvision/torchaudio 제거 — 벤치마크에 불필요)
-        uv pip install torch --index-url "${TORCH_INDEX}"
-        uv pip install vllm --extra-index-url "${TORCH_INDEX}"
-    )
+    uv pip install --python "${VLLM_ENV}/bin/python" vllm --index-url "${TORCH_INDEX}"
     print_done "vLLM 설치 완료"
 fi
 
