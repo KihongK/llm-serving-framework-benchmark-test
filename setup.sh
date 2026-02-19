@@ -54,12 +54,14 @@ echo 'tzdata tzdata/Areas select Asia' | debconf-set-selections 2>/dev/null || t
 echo 'tzdata tzdata/Zones/Asia select Seoul' | debconf-set-selections 2>/dev/null || true
 ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime 2>/dev/null || true
 
-# /etc/timezone 이 read-only면 bind mount로 쓰기 가능하게 만듦
-if ! touch /etc/timezone 2>/dev/null; then
-    echo "Asia/Seoul" > /tmp/_tz_tmp
-    mount --bind /tmp/_tz_tmp /etc/timezone 2>/dev/null || true
+# /etc/timezone 이 read-only면 tzdata dpkg 스크립트를 패치하여 /tmp/timezone 으로 우회
+if ! { echo "Asia/Seoul" > /etc/timezone; } 2>/dev/null; then
+    echo "Asia/Seoul" > /tmp/timezone
+    for f in /var/lib/dpkg/info/tzdata.config /var/lib/dpkg/info/tzdata.postinst; do
+        [ -f "$f" ] && sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
+    done
+    dpkg --configure tzdata 2>/dev/null || true
 fi
-echo "Asia/Seoul" > /etc/timezone 2>/dev/null || true
 
 apt-get update -qq
 
@@ -103,11 +105,15 @@ if apt-get install -y -qq "${APT_PACKAGES[@]}"; then
     print_done "시스템 패키지 설치 완료"
 else
     print_warn "일부 패키지 설치 실패 — dpkg 복구 시도"
-    # tzdata가 read-only filesystem 때문에 실패한 경우 강제 configure
+    # tzdata dpkg 스크립트 패치 재시도
+    echo "Asia/Seoul" > /tmp/timezone 2>/dev/null || true
+    for f in /var/lib/dpkg/info/tzdata.config /var/lib/dpkg/info/tzdata.postinst; do
+        [ -f "$f" ] && sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
+    done
     dpkg --configure -a --force-confdef --force-confold 2>/dev/null || true
     apt-get install -y -qq --fix-broken 2>/dev/null || true
-    # 그래도 tzdata가 broken이면 hold 처리 후 나머지 패키지 재설치
-    if dpkg -l tzdata 2>/dev/null | grep -q '^.F'; then
+    # 그래도 실패하면 tzdata를 hold 처리 후 나머지 패키지만 설치
+    if ! dpkg -l tzdata 2>/dev/null | grep -q '^ii'; then
         echo "tzdata hold" | dpkg --set-selections 2>/dev/null || true
         apt-get install -y -qq "${APT_PACKAGES[@]}" 2>/dev/null || true
     fi
