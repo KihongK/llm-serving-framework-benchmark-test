@@ -46,13 +46,20 @@ print_error() {
 print_step "시스템 패키지 설치 (apt-get)"
 
 export DEBIAN_FRONTEND=noninteractive
+export TZ=Asia/Seoul
 
 # read-only 파일시스템에서 tzdata 설정 실패 방지
-if [ ! -w /etc/timezone ] 2>/dev/null; then
-    ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime 2>/dev/null || true
-    mount -o remount,rw / 2>/dev/null || true
-    echo "Asia/Seoul" > /etc/timezone 2>/dev/null || true
+# debconf pre-seed로 tzdata 인터랙티브 프롬프트 방지
+echo 'tzdata tzdata/Areas select Asia' | debconf-set-selections 2>/dev/null || true
+echo 'tzdata tzdata/Zones/Asia select Seoul' | debconf-set-selections 2>/dev/null || true
+ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime 2>/dev/null || true
+
+# /etc/timezone 이 read-only면 bind mount로 쓰기 가능하게 만듦
+if ! touch /etc/timezone 2>/dev/null; then
+    echo "Asia/Seoul" > /tmp/_tz_tmp
+    mount --bind /tmp/_tz_tmp /etc/timezone 2>/dev/null || true
 fi
+echo "Asia/Seoul" > /etc/timezone 2>/dev/null || true
 
 apt-get update -qq
 
@@ -96,8 +103,14 @@ if apt-get install -y -qq "${APT_PACKAGES[@]}"; then
     print_done "시스템 패키지 설치 완료"
 else
     print_warn "일부 패키지 설치 실패 — dpkg 복구 시도"
+    # tzdata가 read-only filesystem 때문에 실패한 경우 강제 configure
     dpkg --configure -a --force-confdef --force-confold 2>/dev/null || true
     apt-get install -y -qq --fix-broken 2>/dev/null || true
+    # 그래도 tzdata가 broken이면 hold 처리 후 나머지 패키지 재설치
+    if dpkg -l tzdata 2>/dev/null | grep -q '^.F'; then
+        echo "tzdata hold" | dpkg --set-selections 2>/dev/null || true
+        apt-get install -y -qq "${APT_PACKAGES[@]}" 2>/dev/null || true
+    fi
     print_done "시스템 패키지 설치 완료 (일부 경고 있음)"
 fi
 
