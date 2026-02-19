@@ -89,6 +89,21 @@ apt-get install -y -qq "${APT_PACKAGES[@]}"
 print_done "시스템 패키지 설치 완료"
 
 # ─────────────────────────────────────────────
+# GitHub CLI (gh) 설치
+# ─────────────────────────────────────────────
+if command -v gh &>/dev/null; then
+    print_done "GitHub CLI 이미 설치됨 ($(gh --version | head -1))"
+else
+    mkdir -p -m 755 /etc/apt/keyrings
+    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
+    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli-stable.list >/dev/null
+    apt-get update -qq
+    apt-get install -y -qq gh
+    print_done "GitHub CLI 설치 완료"
+fi
+
+# ─────────────────────────────────────────────
 # Git 사용자 설정
 # ─────────────────────────────────────────────
 git config --global user.name "Roy"
