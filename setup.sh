@@ -5,7 +5,7 @@ set -euo pipefail
 # LLM Serving Framework Benchmark - 자동 환경 세팅 스크립트
 #
 # 사용법:
-#   bash setup.sh
+#   curl -fsSL https://raw.githubusercontent.com/.../setup.sh | bash
 #
 # 서버 재시작 후 이 스크립트를 실행하면 전체 환경이 자동으로 구성됩니다.
 # =============================================================================
@@ -53,20 +53,20 @@ export TZ=Asia/Seoul
 
 # read-only 파일시스템에서 tzdata 설정 실패 방지
 # debconf pre-seed로 tzdata 인터랙티브 프롬프트 방지
-echo 'tzdata tzdata/Areas select Asia' | debconf-set-selections 2>/dev/null || true
-echo 'tzdata tzdata/Zones/Asia select Seoul' | debconf-set-selections 2>/dev/null || true
-ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime 2>/dev/null || true
+echo 'tzdata tzdata/Areas select Asia' | sudo debconf-set-selections 2>/dev/null || true
+echo 'tzdata tzdata/Zones/Asia select Seoul' | sudo debconf-set-selections 2>/dev/null || true
+sudo ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime 2>/dev/null || true
 
 # /etc/timezone 이 read-only면 tzdata dpkg 스크립트를 패치하여 /tmp/timezone 으로 우회
-if ! { echo "Asia/Seoul" > /etc/timezone; } 2>/dev/null; then
+if ! echo "Asia/Seoul" | sudo tee /etc/timezone >/dev/null 2>&1; then
     echo "Asia/Seoul" > /tmp/timezone
     for f in /var/lib/dpkg/info/tzdata.config /var/lib/dpkg/info/tzdata.postinst; do
-        [ -f "$f" ] && sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
+        [ -f "$f" ] && sudo sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
     done
-    dpkg --configure tzdata 2>/dev/null || true
+    sudo dpkg --configure tzdata 2>/dev/null || true
 fi
 
-apt-get update -qq
+sudo apt-get update -qq
 
 # 기본 빌드/개발 도구
 APT_PACKAGES=(
@@ -104,21 +104,21 @@ APT_PACKAGES=(
     iotop
 )
 
-if apt-get install -y -qq "${APT_PACKAGES[@]}"; then
+if sudo apt-get install -y -qq "${APT_PACKAGES[@]}"; then
     print_done "시스템 패키지 설치 완료"
 else
     print_warn "일부 패키지 설치 실패 — dpkg 복구 시도"
     # tzdata dpkg 스크립트 패치 재시도
     echo "Asia/Seoul" > /tmp/timezone 2>/dev/null || true
     for f in /var/lib/dpkg/info/tzdata.config /var/lib/dpkg/info/tzdata.postinst; do
-        [ -f "$f" ] && sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
+        [ -f "$f" ] && sudo sed -i 's|/etc/timezone|/tmp/timezone|g' "$f"
     done
-    dpkg --configure -a --force-confdef --force-confold 2>/dev/null || true
-    apt-get install -y -qq --fix-broken 2>/dev/null || true
+    sudo dpkg --configure -a --force-confdef --force-confold 2>/dev/null || true
+    sudo apt-get install -y -qq --fix-broken 2>/dev/null || true
     # 그래도 실패하면 tzdata를 hold 처리 후 나머지 패키지만 설치
     if ! dpkg -l tzdata 2>/dev/null | grep -q '^ii'; then
-        echo "tzdata hold" | dpkg --set-selections 2>/dev/null || true
-        apt-get install -y -qq "${APT_PACKAGES[@]}" 2>/dev/null || true
+        echo "tzdata hold" | sudo dpkg --set-selections 2>/dev/null || true
+        sudo apt-get install -y -qq "${APT_PACKAGES[@]}" 2>/dev/null || true
     fi
     print_done "시스템 패키지 설치 완료 (일부 경고 있음)"
 fi
@@ -129,12 +129,12 @@ fi
 if command -v gh &>/dev/null; then
     print_done "GitHub CLI 이미 설치됨 ($(gh --version | head -1))"
 else
-    mkdir -p -m 755 /etc/apt/keyrings
-    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
-    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli-stable.list >/dev/null
-    apt-get update -qq
-    apt-get install -y -qq gh
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
+    sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli-stable.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq gh
     print_done "GitHub CLI 설치 완료"
 fi
 
