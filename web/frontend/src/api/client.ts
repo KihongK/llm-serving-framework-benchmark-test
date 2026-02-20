@@ -16,6 +16,12 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   return res.json()
 }
 
+async function del<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json()
+}
+
 import type {
   GPUStats,
   ServerHealth,
@@ -32,6 +38,8 @@ export const api = {
   getResultFiles: () => get<Record<string, string[]>>('/results/'),
   getAllResults: () => get<Record<string, FrameworkResults>>('/results/all'),
   getFrameworkResults: (fw: string) => get<FrameworkResults>(`/results/${fw}`),
+  clearAllResults: () => del<{ deleted: Record<string, number> }>('/results/all'),
+  clearFrameworkResults: (fw: string) => del<{ framework: string; deleted_files: number }>(`/results/${fw}`),
 
   // Server
   getHealth: () => get<ServerHealth[]>('/server/health'),
