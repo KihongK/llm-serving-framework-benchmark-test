@@ -264,8 +264,8 @@ async def send_request(
                         choices = data.get("choices", [])
                         if choices:
                             delta = choices[0].get("delta", {})
-                            # Check both content and reasoning_content (reasoning models)
-                            content = delta.get("content", "") or delta.get("reasoning_content", "")
+                            # Check content, reasoning_content (vLLM/SGLang), and reasoning (Ollama)
+                            content = delta.get("content", "") or delta.get("reasoning_content", "") or delta.get("reasoning", "")
                             if content:
                                 if first_token_time is None:
                                     first_token_time = time.perf_counter()
