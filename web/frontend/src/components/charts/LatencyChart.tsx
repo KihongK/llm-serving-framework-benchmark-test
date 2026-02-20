@@ -1,6 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { ScenarioResult } from '../../api/types'
 import { FW_COLORS, FW_LABELS } from '../../api/types'
+import MetricLabel from '../results/MetricLabel'
 
 interface Props {
   data: Record<string, ScenarioResult[]>
@@ -25,7 +26,7 @@ export default function LatencyChart({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-title" style={{ marginBottom: 16 }}>p99 Latency vs Concurrency</div>
+      <div className="card-title" style={{ marginBottom: 16 }}><MetricLabel label="p99 Latency vs Concurrency" /></div>
       <div className="chart-container">
         <ResponsiveContainer>
           <LineChart data={chartData}>

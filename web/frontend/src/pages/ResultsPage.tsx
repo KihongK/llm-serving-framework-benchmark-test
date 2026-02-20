@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
 import type { FrameworkResults, ScenarioResult, ComparisonData } from '../api/types'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Trash2 } from 'lucide-react'
+import { FW_LABELS } from '../api/types'
 import ScenarioSelector from '../components/results/ScenarioSelector'
 import ComparisonTable from '../components/results/ComparisonTable'
+import BenchmarkInfoCard from '../components/results/BenchmarkInfoCard'
+import TechStackCard from '../components/results/TechStackCard'
 import ThroughputChart from '../components/charts/ThroughputChart'
 import LatencyChart from '../components/charts/LatencyChart'
 import TTFTChart from '../components/charts/TTFTChart'
@@ -16,8 +19,11 @@ export default function ResultsPage() {
   const [comparison, setComparison] = useState<ComparisonData | null>(null)
   const [scenario, setScenario] = useState('single_request')
   const [loading, setLoading] = useState(true)
+  const [clearing, setClearing] = useState(false)
+  const [showClearMenu, setShowClearMenu] = useState(false)
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setLoading(true)
     Promise.all([api.getAllResults(), api.getReport()])
       .then(([results, report]) => {
         setData(results)
@@ -26,6 +32,37 @@ export default function ResultsPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const handleClearAll = async () => {
+    if (!confirm('Are you sure you want to delete ALL benchmark results?')) return
+    setClearing(true)
+    setShowClearMenu(false)
+    try {
+      await api.clearAllResults()
+      setData(null)
+      setComparison(null)
+    } catch (e) {
+      alert(`Failed to clear results: ${e}`)
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const handleClearFramework = async (fw: string) => {
+    if (!confirm(`Delete all results for ${FW_LABELS[fw] || fw}?`)) return
+    setClearing(true)
+    setShowClearMenu(false)
+    try {
+      await api.clearFrameworkResults(fw)
+      loadData()
+    } catch (e) {
+      alert(`Failed to clear results: ${e}`)
+    } finally {
+      setClearing(false)
+    }
+  }
 
   if (loading) {
     return <div className="loading-container"><div className="spinner" /> Loading results...</div>
@@ -61,14 +98,48 @@ export default function ResultsPage() {
   return (
     <div>
       <div className="page-header">
-        <h2>Results</h2>
-        <p>
-          Comparing {Object.keys(data).length} framework(s):{' '}
-          {Object.keys(data).join(', ')}
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h2>Results</h2>
+            <p>
+              Comparing {Object.keys(data).length} framework(s):{' '}
+              {Object.keys(data).join(', ')}
+            </p>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn btn-danger"
+              onClick={() => setShowClearMenu((v) => !v)}
+              disabled={clearing}
+              style={{ padding: '6px 14px', fontSize: 13 }}
+            >
+              <Trash2 size={14} />
+              {clearing ? 'Clearing...' : 'Clear Results'}
+            </button>
+            {showClearMenu && (
+              <div className="clear-menu">
+                <button className="clear-menu-item" onClick={handleClearAll}>
+                  Clear All
+                </button>
+                {Object.keys(data).map((fw) => (
+                  <button key={fw} className="clear-menu-item" onClick={() => handleClearFramework(fw)}>
+                    Clear {FW_LABELS[fw] || fw}
+                  </button>
+                ))}
+                <button className="clear-menu-item" onClick={() => setShowClearMenu(false)} style={{ color: 'var(--text-secondary)' }}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <ScenarioSelector active={scenario} onChange={setScenario} available={available} />
+
+      <BenchmarkInfoCard data={data} />
+
+      <TechStackCard />
 
       {/* Comparison Table */}
       {Object.keys(scenarioData).length > 0 ? (

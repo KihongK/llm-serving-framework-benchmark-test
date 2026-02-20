@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { ScenarioResult } from '../../api/types'
 import { FW_COLORS, FW_LABELS } from '../../api/types'
+import MetricLabel from '../results/MetricLabel'
 
 interface Props {
   data: Record<string, ScenarioResult[]>
@@ -26,7 +27,7 @@ export default function TTFTChart({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-title" style={{ marginBottom: 16 }}>TTFT by Input Length</div>
+      <div className="card-title" style={{ marginBottom: 16 }}><MetricLabel label="TTFT by Input Length" /></div>
       <div className="chart-container">
         <ResponsiveContainer>
           <BarChart data={chartData}>

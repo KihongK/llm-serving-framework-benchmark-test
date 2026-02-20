@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { ScenarioResult } from '../../api/types'
 import { FW_LABELS } from '../../api/types'
+import MetricLabel from '../results/MetricLabel'
 
 interface Props {
   data: Record<string, ScenarioResult[]>
@@ -18,7 +19,7 @@ export default function PrefixCacheChart({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-title" style={{ marginBottom: 16 }}>Prefix Cache: Cold vs Cached TTFT</div>
+      <div className="card-title" style={{ marginBottom: 16 }}><MetricLabel label="Prefix Cache: Cold vs Cached TTFT" /></div>
       <div className="chart-container">
         <ResponsiveContainer>
           <BarChart data={chartData}>

@@ -324,6 +324,35 @@ button {
   background: #dc2626;
 }
 
+.clear-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 160px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.clear-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clear-menu-item:hover {
+  background: var(--bg-hover);
+}
+
 .btn-secondary {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -702,4 +731,340 @@ button {
   padding: 5px 12px;
   font-size: 12px;
   border-radius: 6px;
+}
+
+/* Tech chip badges */
+.tech-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.tech-chip.on {
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+}
+
+.tech-chip.off {
+  background: rgba(107, 114, 128, 0.12);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.tech-chip.partial {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+/* Tech tooltip (Layer 1 — hover popup) */
+.tech-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tech-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  z-index: 200;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.tech-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border);
+}
+
+.tech-tooltip-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.tech-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.tech-tooltip-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tech-tooltip-value {
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.tech-tooltip-value.on { color: #a5b4fc; }
+.tech-tooltip-value.off { color: var(--text-muted); text-decoration: line-through; }
+.tech-tooltip-value.partial { color: #fbbf24; }
+
+/* Scenario tech bar (Layer 2) */
+.scenario-tech-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scenario-tech-bar-fw {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scenario-tech-bar-fw-name {
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.scenario-tech-bar-fw-name.sglang { color: var(--sglang); }
+.scenario-tech-bar-fw-name.vllm { color: var(--vllm); }
+.scenario-tech-bar-fw-name.ollama { color: var(--ollama); }
+
+/* Tech stack card (Layer 3 — collapsible) */
+.tech-stack-card {
+  margin-bottom: 24px;
+}
+
+.tech-stack-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.tech-stack-toggle:hover {
+  color: var(--text-primary);
+}
+
+.tech-stack-body {
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.tech-stack-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tech-stack-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tech-stack-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tech-stack-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.tech-stack-table .tech-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.scenario-tech-reason {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+/* Benchmark info card */
+.benchmark-info-card {
+  margin-bottom: 24px;
+}
+
+.benchmark-info-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.benchmark-info-toggle:hover {
+  color: var(--text-primary);
+}
+
+.benchmark-info-body {
+  margin-top: 16px;
+}
+
+.benchmark-info-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.benchmark-info-section-title:not(:first-child) {
+  margin-top: 20px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.info-grid-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.info-grid-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cmd-block {
+  background: #0a0c10;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a8b2d1;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
+.cmd-block-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+/* Metric label tooltip */
+.metric-label-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.metric-label-text {
+  border-bottom: 1px dashed var(--text-muted);
+  cursor: help;
+}
+
+.metric-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  min-width: 240px;
+  max-width: 320px;
+  z-index: 300;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: opacity 0.15s, visibility 0.15s;
+}
+
+.metric-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border);
+}
+
+.metric-label-wrapper:hover .metric-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Card title variant */
+.card-title .metric-label-text {
+  border-bottom-color: var(--text-muted);
 }

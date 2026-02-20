@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
 import type { FrameworkResults } from '../../api/types'
 import { FW_COLORS, FW_LABELS } from '../../api/types'
+import MetricLabel from '../results/MetricLabel'
 
 interface Props {
   data: Record<string, FrameworkResults>
@@ -18,7 +19,7 @@ export default function GPUMemoryChart({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-title" style={{ marginBottom: 16 }}>Peak GPU Memory Usage</div>
+      <div className="card-title" style={{ marginBottom: 16 }}><MetricLabel label="Peak GPU Memory Usage" /></div>
       <div className="chart-container">
         <ResponsiveContainer>
           <BarChart data={chartData}>

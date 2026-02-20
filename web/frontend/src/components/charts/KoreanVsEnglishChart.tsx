@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { ScenarioResult } from '../../api/types'
 import { FW_LABELS } from '../../api/types'
+import MetricLabel from '../results/MetricLabel'
 
 interface Props {
   data: Record<string, ScenarioResult[]>
@@ -24,7 +25,7 @@ export default function KoreanVsEnglishChart({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-title" style={{ marginBottom: 16 }}>Korean vs English Throughput</div>
+      <div className="card-title" style={{ marginBottom: 16 }}><MetricLabel label="Korean vs English Throughput" /></div>
       <div className="chart-container">
         <ResponsiveContainer>
           <BarChart data={chartData}>
